@@ -12,8 +12,16 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/imap": "^0.8.43",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^26.6.5",
+    "ts-node": "^10.9.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "imap": "^0.8.19",
+    "mailparser": "^3.12.4"
   }
 }
