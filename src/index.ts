@@ -1,6 +1,7 @@
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
 import dotenv from 'dotenv';
+import db from './db'; // Импортируем нашу базу
 
 dotenv.config();
 
@@ -23,6 +24,12 @@ interface RejectEntry {
 }
 
 const results: RejectEntry[] = [];
+
+// Подготавливаем запрос на вставку один раз для эффективности
+const insertStmt = db.prepare(`
+  INSERT OR IGNORE INTO rejections (email_date, vacancy, company)
+  VALUES (?, ?, ?)
+`);
 
 async function fetchCompanyFromHH(vacancyUrl: string): Promise<string | null> {
   try {
@@ -111,6 +118,16 @@ imap.once('ready', () => {
                 }
               }
 
+              // --- СОХРАНЕНИЕ В БАЗУ ---
+              // Вставляем запись. Если такая же уже есть (по дате+вакансии+компании), можно добавить проверку,
+              // но для простоты пока просто вставляем.
+              const info = insertStmt.run(date, vacancy, company);
+              if (info.changes > 0) {
+                console.log(`  + сохранено: ${vacancy} | ${company}`);
+              } else {
+                console.log(`  = уже в базе: ${vacancy} | ${company}`);
+              }
+
               results.push({
                 date: parsed.date ?? new Date(0),
                 dateStr: date,
@@ -136,11 +153,11 @@ imap.once('ready', () => {
 
         results.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-        console.log('=== Отказы с HeadHunter ===');
+        console.log('=== Отказы с HeadHunter (сохранены в БД) ===');
         for (const r of results) {
           console.log(`${r.dateStr} | ${r.vacancy} | ${r.company}`);
         }
-        console.log(`Всего: ${results.length}`);
+        console.log(`Всего обработано: ${results.length}`);
 
         imap.end();
       });
@@ -154,6 +171,7 @@ imap.once('error', (err: Error) => {
 
 imap.once('end', () => {
   console.log('Соединение закрыто.');
+  db.close(); // Закрываем базу при завершении
 });
 
 imap.connect();
