@@ -11,9 +11,11 @@ const app = express();
 app.use(cors());
 
 app.get('/api/rejections', (_req, res) => {
-    const rows = db.prepare(
-        'SELECT email_date, vacancy, company FROM rejections ORDER BY email_date DESC'
-    ).all();
+    const rows = db.prepare(`
+        SELECT email_date, vacancy, company
+        FROM rejections
+        ORDER BY substr(email_date, 7, 4) || '-' || substr(email_date, 4, 2) || '-' || substr(email_date, 1, 2) DESC
+    `).all();
     res.json(rows);
 });
 
