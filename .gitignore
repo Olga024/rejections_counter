@@ -1,6 +1,5 @@
 server/node_modules/ 
 server/.env
 server/*.db
-/server/src/db.ts
 *.db-wal
 *.db-shm

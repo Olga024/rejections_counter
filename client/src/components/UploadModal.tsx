@@ -34,23 +34,39 @@ export default function UploadModal({ isOpen, onClose, onSave }: UploadModalProp
         const reader = new FileReader();
         reader.onload = (e) => {
             setImage(e.target?.result as string);
-            simulateAIScanning();
         };
         reader.readAsDataURL(file);
+        analyzeScreenshot(file);
     };
 
-    const simulateAIScanning = () => {
+    const analyzeScreenshot = async (file: File) => {
         setIsScanning(true);
-        timerRef.current = setTimeout(() => {
-            setIsScanning(false);
+
+        const formData = new FormData();
+        formData.append('screenshot', file);
+
+        try {
+            const response = await fetch('/api/analyze-screenshot', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Ошибка сервера');
+
+            const data = await response.json();
 
             setFormData(prev => ({
                 ...prev,
-                vacancy: 'Frontend-разработчик (React)',
-                company: 'Т-Банк',
-                email_date: new Date().toISOString().split('T')[0]
+                vacancy: data.vacancy || '',
+                company: data.company || '',
+                email_date: data.date || ''
             }));
-        }, 2500);
+        } catch (error) {
+            console.error('Ошибка распознавания:', error);
+            alert('Не удалось распознать скриншот. Пожалуйста, заполните данные вручную.');
+        } finally {
+            setIsScanning(false);
+        }
     };
 
     const handleRemoveImage = () => {
@@ -77,7 +93,6 @@ export default function UploadModal({ isOpen, onClose, onSave }: UploadModalProp
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSave(formData);
-        // Сброс формы
         handleRemoveImage();
         setFormData({ email_date: '', vacancy: '', company: '', github_url: '', note: '' });
         onClose();

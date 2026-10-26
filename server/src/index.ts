@@ -3,12 +3,20 @@ import { simpleParser } from 'mailparser';
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import db from './db';
+import { parseRejectionScreenshot } from './gigachat';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 } // Лимит GigaChat — 15 Мб
+})
 
 app.get('/api/rejections', (_req, res) => {
     const rows = db.prepare(`
@@ -17,6 +25,23 @@ app.get('/api/rejections', (_req, res) => {
         ORDER BY substr(email_date, 7, 4) || '-' || substr(email_date, 4, 2) || '-' || substr(email_date, 1, 2) DESC
     `).all();
     res.json(rows);
+});
+
+app.post('/api/analyze-screenshot', upload.single('screenshot'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не загружен' });
+        }
+
+        console.log('Отправка скриншота в GigaChat Vision...');
+        const result = await parseRejectionScreenshot(req.file.buffer, req.file.mimetype);
+        
+        console.log('Результат от AI:', result);
+        res.json(result);
+    } catch (error) {
+        console.error('Ошибка при обращении к GigaChat:', error);
+        res.status(500).json({ error: 'Не удалось распознать изображение' });
+    }
 });
 
 app.listen(3001, () => {
