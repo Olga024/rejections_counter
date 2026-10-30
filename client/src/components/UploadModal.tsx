@@ -42,24 +42,32 @@ export default function UploadModal({ isOpen, onClose, onSave }: UploadModalProp
     const analyzeScreenshot = async (file: File) => {
         setIsScanning(true);
 
-        const formData = new FormData();
-        formData.append('screenshot', file);
+        const form = new FormData();
+        form.append('screenshot', file);
 
         try {
             const response = await fetch('/api/analyze-screenshot', {
                 method: 'POST',
-                body: formData,
+                body: form,
             });
 
-            if (!response.ok) throw new Error('Ошибка сервера');
+            const json = (await response.json()) as {
+                data?: { vacancy: string; company: string; date: string | null };
+                error?: { message: string };
+            };
 
-            const data = await response.json();
+            if (!response.ok || !json.data) {
+                throw new Error(json.error?.message ?? 'Не удалось распознать изображение');
+            }
+
+            const payload = json.data;
 
             setFormData(prev => ({
                 ...prev,
-                vacancy: data.vacancy || '',
-                company: data.company || '',
-                email_date: data.date || ''
+                vacancy: payload.vacancy || '',
+                company: payload.company || '',
+                // Сервер отдаёт дату в ISO (YYYY-MM-DD) — это ровно формат input[type=date]
+                email_date: payload.date || '',
             }));
         } catch (error) {
             console.error('Ошибка распознавания:', error);

@@ -3,6 +3,7 @@ import type { Rejection } from './types';
 import UploadModal from './components/UploadModal';
 import { getList } from './api/getList';
 import { addRejection } from './api/addRejection';
+import { formatRuDate } from './utils/formatDate';
 
 export default function App() {
     const [data, setData] = useState<Rejection[]>([]);
@@ -17,17 +18,20 @@ export default function App() {
     }, [setLoading, setData]);
 
     const handleSave = useCallback((newRejection: Rejection) => {
-        setData([newRejection, ...data]);
-
-        // send new data to backend here
+        setData(prev => [newRejection, ...prev]);
         addRejection(newRejection)
-            .catch((error) => { console.error(error); })
-            .finally(() => { loadData(); });
+            .catch((error) => {
+                console.error(error);
+                loadData();
+            })
+            .finally(() => {
+                loadData();
+            });
     }, [loadData]);
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [loadData]);
 
     if (loading) {
         return (
@@ -79,7 +83,7 @@ export default function App() {
                             >
                                 <div className="flex justify-between items-start mb-4">
                                     <span className="text-xs font-mono text-frost/50 bg-frost/5 px-2 py-1 rounded">
-                                        {r.email_date}
+                                        {formatRuDate(r.email_date)}
                                     </span>
                                     {r.github_url && (
                                         <a href={r.github_url} target="_blank" rel="noreferrer" className="text-frost/40 hover:text-indigo-400 transition-colors" title="Ссылка на GitHub">
