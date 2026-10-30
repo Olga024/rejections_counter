@@ -1,27 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Rejection } from './types';
 import UploadModal from './components/UploadModal';
+import { getList } from './api/getList';
+import { addRejection } from './api/addRejection';
 
 export default function App() {
     const [data, setData] = useState<Rejection[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    useEffect(() => {
-        fetch('/api/rejections')
-            .then((r) => r.json())
-            .then((rows) => {
-                setData(rows);
-                setLoading(false);
-            })
-            .catch(() => {
-                setLoading(false);
-            });
-    }, []);
+    const loadData = useCallback(() => {
+        getList()
+            .then((rows) => { setData(rows); })
+            .catch((error) => { console.error(error); })
+            .finally(() => { setLoading(false); });
+    }, [setLoading, setData]);
 
-    const handleSave = (newRejection: Rejection) => {
+    const handleSave = useCallback((newRejection: Rejection) => {
         setData([newRejection, ...data]);
-    };
+
+        // send new data to backend here
+        addRejection(newRejection)
+            .catch((error) => { console.error(error); })
+            .finally(() => { loadData(); });
+    }, [loadData]);
+
+    useEffect(() => {
+        loadData();
+    }, []);
 
     if (loading) {
         return (

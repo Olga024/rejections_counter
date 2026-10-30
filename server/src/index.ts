@@ -2,6 +2,7 @@ import Imap from 'imap';
 import { simpleParser } from 'mailparser';
 import dotenv from 'dotenv';
 import express from 'express';
+import { type Request, type Response } from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import db from './db';
@@ -13,9 +14,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const upload = multer({ 
+const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 15 * 1024 * 1024 } // Лимит GigaChat — 15 Мб
+    limits: { fileSize: 15 * 1024 * 1024 }
 })
 
 app.get('/api/rejections', (_req, res) => {
@@ -35,7 +36,7 @@ app.post('/api/analyze-screenshot', upload.single('screenshot'), async (req, res
 
         console.log('Отправка скриншота в GigaChat Vision...');
         const result = await parseRejectionScreenshot(req.file.buffer, req.file.mimetype);
-        
+
         console.log('Результат от AI:', result);
         res.json(result);
     } catch (error) {
@@ -43,6 +44,17 @@ app.post('/api/analyze-screenshot', upload.single('screenshot'), async (req, res
         res.status(500).json({ error: 'Не удалось распознать изображение' });
     }
 });
+
+app.post('/api/rejections', (req: Request, res: Response) => {
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>', req.body);
+    const newRecord = insertRecordToDB.run((new Date(req.body.email_date)).toLocaleDateString('ru-RU'), req.body.vacancy, req.body.company, req.body.github_url, req.body.note);
+    if (newRecord.changes > 0) {
+        res.sendStatus(200);
+    } else {
+        res.sendStatus(500);
+    }
+
+})
 
 app.listen(3001, () => {
     console.log('API: http://localhost:3001/api/rejections');
@@ -68,9 +80,9 @@ interface RejectEntry {
 
 const results: RejectEntry[] = [];
 
-const insertStmt = db.prepare(`
-  INSERT OR IGNORE INTO rejections (email_date, vacancy, company)
-  VALUES (?, ?, ?)
+const insertRecordToDB = db.prepare(`
+  INSERT OR IGNORE INTO rejections (email_date, vacancy, company, github_url, note)
+  VALUES (?, ?, ?, ?, ?)
 `);
 
 async function fetchCompanyFromHH(vacancyUrl: string): Promise<string | null> {
@@ -160,7 +172,7 @@ imap.once('ready', () => {
                                 }
                             }
 
-                            const info = insertStmt.run(date, vacancy, company);
+                            const info = insertRecordToDB.run(date, vacancy, company, '', '');
                             if (info.changes > 0) {
                                 console.log(`  + сохранено: ${vacancy} | ${company}`);
                             } else {

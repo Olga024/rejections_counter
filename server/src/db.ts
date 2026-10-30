@@ -10,7 +10,9 @@ db.exec(`
     email_date TEXT NOT NULL,
     vacancy TEXT NOT NULL,
     company TEXT NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    github_url TEXT,
+    note TEXT
   )
 `);
 
